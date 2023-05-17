@@ -6,7 +6,7 @@
 ;; URL: https://github.com/rougier/notes-list
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
-;; Keywords: convenience 
+;; Keywords: convenience
 
 ;; This file is not part of GNU Emacs.
 
@@ -25,7 +25,10 @@
 
 ;;; Commentary:
 
-;; Notes list collects notes in user-defined directories and populate a buffer with a two-lines summary for each note. To do so, notes are parsed such as to extract title, icon, date, summary and tags. A typical org note header is thus
+;; Notes list collects notes in user-defined directories and populate a buffer
+;; with a two-lines summary for each note. To do so, notes are parsed such as to
+;; extract title, icon, date, summary and tags. A typical org note header is
+;; thus
 ;;
 ;;  #+TITLE:    Emacs hacking
 ;;  #+DATE:     2023-03-17
@@ -118,6 +121,18 @@
 (defvar notes-list--icons nil
   "Icons cache")
 
+(defvar notes-list-collect-notes-function #'notes-list-collect-org-notes
+  "Function to used to build list of notes to display.")
+
+(defvar notes-list-open-function #'find-file
+  "Function used to open notes.")
+
+(defvar notes-list-stripe-face 'highlight
+  "Face to use for alternating note style in list.")
+
+(defvar notes-list-highlight-face 'nano-subtle
+  "Face to use for selected note style in list.")
+
 (defun notes-list--make-icon (icon)
   "Format given ICON description as a two lines square image.
 
@@ -147,7 +162,7 @@ two parts (top . bottom)"
            ;;           (/ (float icon-height) (float img-height))
            ;;         (/ (float icon-width) (float img-width))))
            (scale (/ (float icon-height) (float img-height)))
-           
+
            (scaled-width (truncate (* scale img-width)))
            (scaled-height (truncate (* scale img-height)))
            (icon-true-width (truncate (* img-width scale)))
@@ -182,7 +197,7 @@ two parts (top . bottom)"
 
 (defun notes-list-format-tags (tags)
   "Transform a list of tags into a SVG tags string"
-  
+
   (mapconcat (lambda (tag)
                (unless (assoc tag notes-list--svg-tags)
                  (setq notes-list--svg-tags
@@ -213,7 +228,7 @@ truncated."
          (icon (or (cdr (assoc "ICON" note)) "note-outline"))
          (icon (notes-list--make-icon icon))
          (filename (cdr (assoc "FILENAME" note)))
-         
+
          (tags (or (cdr (assoc "TAGS" note)) ""))
          (tags (notes-list-format-tags tags))
          (tags (if notes-list-display-tags
@@ -241,13 +256,13 @@ truncated."
          (title (truncate-string-to-width
                     title
                     (- width (length time) 1) nil nil "…"))
-         
+
          (summary (or (cdr (assoc "SUMMARY" note)) ""))
          (summary (notes-list-format-summary summary))
          (summary (if notes-list-display-icons
                       (concat (cdr icon) " " summary)
                     summary))
-         
+
          (top-filler (propertize " " 'display
                                  `(space :align-to (- right ,(length time) 1))))
          (summary (concat (propertize " " 'display '(raise -0.5))
@@ -324,17 +339,26 @@ need to be defined at top level as keywords."
 
 (defun notes-list-collect-notes ()
   "Collect notes from note directories"
-  
-  (let ((notes nil)
-        (recentf-list-saved recentf-list))
+  (let ((recentf-list-saved))
+    (when (boundp 'recentf-list)
+      (setq recentf-list-saved recentf-list))
+
+    (let ((notes (funcall notes-list-collect-notes-function)))
+      (setq notes-list--notes notes))
+
+    (when (boundp 'recentf-list)
+      (setq recentf-list recentf-list-saved)))
+
+  notes-list--notes)
+
+(defun notes-list-collect-org-notes ()
+  (let ((notes nil))
     (dolist (directory notes-list-directories)
       (dolist (filename (directory-files directory t ".*\\.org"))
         (when (notes-list-note-p filename)
           (let ((note (notes-list-parse-org-note filename)))
             (setq notes (add-to-list 'notes note))))))
-    (setq notes-list--notes notes)
-    (setq recentf-list recentf-list-saved))
-  notes-list--notes)
+    notes))
 
 (defun notes-list-quit ()
   (interactive)
@@ -352,22 +376,25 @@ need to be defined at top level as keywords."
       (goto-char (- (point-max) 1))
     (forward-line -1)))
 
+(defun notes-list-open (filename)
+  (funcall notes-list-open-function filename))
+
 (defun notes-list-open-note ()
   (interactive)
   (let ((filename (get-text-property (point) 'filename)))
-    (find-file filename)))
+    (notes-list-open filename)))
 
 (defun notes-list-open-note-other-window ()
   (interactive)
   (let ((filename (get-text-property (point) 'filename)))
     (other-window 1)
-    (find-file filename)))
+    (notes-list-open filename)))
 
 (defun notes-list-show-note-other-window ()
   (interactive)
   (let ((filename (get-text-property (point) 'filename)))
     (with-selected-window (next-window)
-    (find-file filename))))
+    (notes-list-open filename))))
 
 (defvar notes-list--buffer-width nil
   "Notes list buffer width")
@@ -400,13 +427,13 @@ need to be defined at top level as keywords."
 
 (defun notes-list-refresh ()
   "Rebuild the note list if necessary (no reload)"
-  
   (interactive)
 
-  (let* ((notes (sort notes-list--notes notes-list-sort-function))
+  (let* ((notes (sort (cl-copy-list notes-list--notes) notes-list-sort-function))
          (notes (if (eq notes-list-sort-order #'ascending)
                     notes
                   (reverse notes))))
+
   (with-current-buffer (notes-list-buffer)
     (let ((filename (get-text-property (point) 'filename)))
       (beginning-of-line)
@@ -430,7 +457,7 @@ need to be defined at top level as keywords."
       (setq notes-list-display-icons nil)
     (setq notes-list-display-icons t))
   (notes-list-refresh))
-  
+
 (defun notes-list-toggle-date ()
   "Toggle date display"
 
@@ -457,7 +484,7 @@ need to be defined at top level as keywords."
 
 (define-minor-mode notes-list-mode
   "A minor mode for browsing note list"
-  
+
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "d") #'notes-list-toggle-date)
             (define-key map (kbd "i") #'notes-list-toggle-icons)
@@ -473,22 +500,24 @@ need to be defined at top level as keywords."
             (define-key map (kbd "<right") nil)
             (define-key map (kbd "<up>") #'notes-list-prev-note)
             (define-key map (kbd "<down>") #'notes-list-next-note)
+
             map)
   (when notes-list-mode
     (setq stripes-unit 1)
     (stripes-mode t)
     (setq hl-line-overlay-priority 100)
     (hl-line-mode t)
-    (face-remap-set-base 'stripes :inherit 'highlight)
-    (face-remap-add-relative 'hl-line :inherit 'nano-subtle)
+    (face-remap-set-base 'stripes :inherit notes-list-stripe-face)
+    (face-remap-add-relative 'hl-line :inherit notes-list-highlight-face)
     (setq-local cursor-type nil)
     (read-only-mode t)
     (add-hook 'window-size-change-functions #'notes-list--resize-hook)))
 
+
 ;;;###autoload
 (defun notes-list ()
   "Display note list in current buffer"
-  
+
   (interactive)
   (switch-to-buffer (notes-list-buffer))
   (notes-list-reload)
