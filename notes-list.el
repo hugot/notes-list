@@ -50,7 +50,6 @@
 (require 'stripes)
 (require 'svg-lib)
 (require 'svg-tag-mode)
-(require 'nano-theme)
 (require 'cl-lib)
 
 (defgroup notes-list nil
@@ -98,25 +97,48 @@
   :type 'boolean
   :group 'notes-list)
 
-(defface notes-list-face-title
-  '((t (:inherit (nano-salient nano-strong))))
-  "Face for notes title"
-  :group 'notes-list)
+(if (require 'nano-theme nil t)
+    (progn ;; Styles for nano-theme users
+      (defface notes-list-face-title
+        '((t (:inherit (nano-salient nano-strong))))
+        "Face for notes title"
+        :group 'notes-list)
 
-(defface notes-list-face-tags
-  '((t (:inherit nano-faded)))
-  "Face for notes tags"
-  :group 'notes-list)
+      (defface notes-list-face-tags
+        '((t (:inherit nano-faded)))
+        "Face for notes tags"
+        :group 'notes-list)
 
-(defface notes-list-face-summary
-  '((t (:inherit nano-default)))
-  "Face for notes summary"
-  :group 'notes-list)
+      (defface notes-list-face-summary
+        '((t (:inherit nano-default)))
+        "Face for notes summary"
+        :group 'notes-list)
 
-(defface notes-list-face-time
-  '((t (:inherit nano-faded)))
-  "Face for notes time"
-  :group 'notes-list)
+      (defface notes-list-face-time
+        '((t (:inherit nano-faded)))
+        "Face for notes time"
+        :group 'notes-list))
+
+  (progn ;; Default styles
+    (defface notes-list-face-title
+    '((t (:inherit (font-lock-keywords-face))))
+    "Face for notes title"
+    :group 'notes-list)
+
+  (defface notes-list-face-tags
+    '((t (:inherit font-lock-comment-face)))
+    "Face for notes tags"
+    :group 'notes-list)
+
+  (defface notes-list-face-summary
+    '((t (:inherit font-lock-string-face)))
+    "Face for notes summary"
+    :group 'notes-list)
+
+  (defface notes-list-face-time
+    '((t (:inherit font-lock-comment-face)))
+    "Face for notes time"
+    :group 'notes-list)))
 
 (defvar notes-list--icons nil
   "Icons cache")
@@ -132,6 +154,9 @@
 
 (defvar notes-list-highlight-face 'nano-subtle
   "Face to use for selected note style in list.")
+
+(defvar notes-list-inbox-tag-face 'default
+  "Face to use for \"INBOX\" tag style in notes list.")
 
 (defun notes-list--make-icon (icon)
   "Format given ICON description as a two lines square image.
@@ -191,7 +216,7 @@ two parts (top . bottom)"
 (defun notes-list--make-tag (tag)
 
   (let ((svg-tag (if (string-equal tag "INBOX")
-                     (svg-tag-make tag :face 'nano-salient :inverse t)
+                     (svg-tag-make tag :face notes-list-inbox-tag-face :inverse t)
                    (svg-tag-make tag :face 'default))))
   (propertize (concat tag " ") 'display svg-tag)))
 
@@ -230,10 +255,7 @@ truncated."
          (filename (cdr (assoc "FILENAME" note)))
 
          (tags (or (cdr (assoc "TAGS" note)) ""))
-         (tags (notes-list-format-tags tags))
-         (tags (if notes-list-display-tags
-                   tags
-                 ""))
+         (tags (if notes-list-display-tags (notes-list-format-tags tags) ""))
          (time (or
                 (cond ((eq notes-list-date-display 'creation)
                        (cdr (assoc "TIME-CREATION" note)))
