@@ -149,11 +149,15 @@
 (defvar notes-list-open-function #'find-file
   "Function used to open notes.")
 
-(defvar notes-list-stripe-face 'highlight
+(defvar notes-list-stripe-face 'mode-line
   "Face to use for alternating note style in list.")
 
-(defvar notes-list-highlight-face 'nano-subtle
-  "Face to use for selected note style in list.")
+(defface notes-list-highlight-face
+  `((t (:background ,(face-background 'region) :foreground ,(face-foreground
+                                                             'font-lock-builtin-face)
+                    :weight ,(face-attribute 'font-lock-builtin-face :weight))))
+  "Face to use for selected note style in list."
+  :group 'notes-list)
 
 (defvar notes-list-inbox-tag-face 'default
   "Face to use for \"INBOX\" tag style in notes list.")
@@ -530,7 +534,7 @@ need to be defined at top level as keywords."
     (setq hl-line-overlay-priority 100)
     (hl-line-mode t)
     (face-remap-set-base 'stripes :inherit notes-list-stripe-face)
-    (face-remap-add-relative 'hl-line :inherit notes-list-highlight-face)
+    (face-remap-add-relative 'hl-line :inherit 'notes-list-highlight-face)
     (setq-local cursor-type nil)
     (read-only-mode t)
     (add-hook 'window-size-change-functions #'notes-list--resize-hook)))
