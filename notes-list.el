@@ -47,7 +47,6 @@
 (require 'stripes)
 (require 'svg-lib)
 (require 'svg-tag-mode)
-(require 'nano-theme)
 (require 'cl-lib)
 (require 'text-property-search)
 
@@ -102,7 +101,7 @@
   :group 'notes-list)
 
 (defface notes-list-face-tags
-  '((t (:inherit nano-faded)))
+  '((t (:inherit nano-salient)))
   "Face for notes tags"
   :group 'notes-list)
 
@@ -115,6 +114,14 @@
   '((t (:inherit nano-faded)))
   "Face for notes time"
   :group 'notes-list)
+
+(defface notes-list-face-stripe
+  `((t (:inherit highlight)))
+  "Face to use for alternating note style in list.")
+
+(defface notes-list-face-highlight
+  `((t (:inherit nano-subtle)))
+  "Face to use for selected note style in list.")
 
 (defvar notes-list--icons nil
   "Icons cache")
@@ -187,7 +194,7 @@ two parts (top . bottom)"
 (defun notes-list--make-tag (tag)
 
   (let ((svg-tag (if (string-equal tag "INBOX")
-                     (svg-tag-make tag :face 'nano-salient :inverse t)
+                     (svg-tag-make tag :face 'notes-list-face-tags :inverse t)
                    (svg-tag-make tag :face 'default))))
   (propertize (concat tag " ") 'display svg-tag)))
 
@@ -469,22 +476,22 @@ need to be defined at top level as keywords."
          (notes (if (eq notes-list-sort-order #'ascending)
                     notes
                   (reverse notes))))
-  (with-current-buffer (notes-list-buffer)
-    (let ((filename (get-text-property (point) 'filename)))
-      (beginning-of-line)
-      (let ((line (count-lines 1 (point)))
-            (inhibit-read-only t))
-        (erase-buffer)
-        (dolist (note notes)
-          (notes-list-insert-formatted note)
-          (insert "\n"))
-        (insert "\n")
-        (goto-char (point-min))
-        (let ((match (text-property-search-forward 'filename filename t)))
-          (if match
-              (goto-char (prop-match-beginning match))
-            (forward-line line)))
-        (beginning-of-line))))))
+    (with-current-buffer (notes-list-buffer)
+        (let ((filename (get-text-property (point) 'filename)))
+          (beginning-of-line)
+          (let ((line (count-lines 1 (point)))
+                (inhibit-read-only t))
+            (erase-buffer)
+            (dolist (note notes)
+              (notes-list-insert-formatted note)
+              (insert "\n"))
+            (insert "\n")
+            (goto-char (point-min))
+            (let ((match (text-property-search-forward 'filename filename t)))
+              (if match
+                  (goto-char (prop-match-beginning match))
+                (forward-line line)))
+            (beginning-of-line))))))
 
 (defun notes-list-toggle-icons ()
   "Toggle icons display"
@@ -518,7 +525,6 @@ need to be defined at top level as keywords."
 
   (get-buffer-create "*notes-list*"))
 
-
 (define-minor-mode notes-list-mode
   "A minor mode for browsing note list"
 
@@ -543,8 +549,8 @@ need to be defined at top level as keywords."
     (stripes-mode t)
     (setq hl-line-overlay-priority 100)
     (hl-line-mode t)
-    (face-remap-set-base 'stripes :inherit 'highlight)
-    (face-remap-add-relative 'hl-line :inherit 'nano-subtle)
+    (face-remap-set-base 'stripes :inherit 'notes-list-face-stripe)
+    (face-remap-add-relative 'hl-line :inherit 'notes-list-face-highlight)
     (setq-local cursor-type nil)
     (read-only-mode t)
     (add-hook 'window-size-change-functions #'notes-list--resize-hook)))
