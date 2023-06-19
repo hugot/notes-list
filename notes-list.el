@@ -551,6 +551,8 @@ need to be defined at top level as keywords."
             (define-key map (kbd "<down>") #'notes-list-next-note)
             map)
   (when notes-list-mode
+    ;; Prevent lines from being truncated in narrow window configurations
+    (setq-local truncate-partial-width-windows 1)
     (setq stripes-unit 1)
     (stripes-mode t)
     (setq hl-line-overlay-priority 100)
